@@ -1,0 +1,209 @@
+### ============================================================
+### SisHotel — Exemplos de requisição
+### Compatível com VS Code REST Client, JetBrains HTTP Client, Insomnia
+### ============================================================
+
+@baseUrl   = http://localhost:8000
+@guestAna  = 11111111-1111-1111-1111-111111111111
+@guestBruno= 22222222-2222-2222-2222-222222222222
+@room101   = aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
+@room201   = bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb
+@room301   = cccccccc-cccc-cccc-cccc-cccccccccccc
+
+### ------------------------------------------------------------
+### Health
+### ------------------------------------------------------------
+
+GET {{baseUrl}}/health
+
+### ------------------------------------------------------------
+### HÓSPEDES
+### ------------------------------------------------------------
+
+### Listar hóspedes
+GET {{baseUrl}}/api/v1/guests
+
+### Buscar hóspede por ID
+GET {{baseUrl}}/api/v1/guests/{{guestAna}}
+
+### Criar hóspede
+POST {{baseUrl}}/api/v1/guests
+Content-Type: application/json
+
+{
+  "full_name": "Carlos Pereira",
+  "document": "55544433322",
+  "email": "carlos@example.com",
+  "phone": "+55-11-91234-5678"
+}
+
+### Criar hóspede - 409 (documento duplicado)
+POST {{baseUrl}}/api/v1/guests
+Content-Type: application/json
+
+{
+  "full_name": "Outro Carlos",
+  "document": "55544433322",
+  "email": "outro@example.com"
+}
+
+### Criar hóspede - 400 (email inválido)
+POST {{baseUrl}}/api/v1/guests
+Content-Type: application/json
+
+{
+  "full_name": "Maria",
+  "document": "11122233344",
+  "email": "nao-eh-email"
+}
+
+### Atualizar hóspede
+PUT {{baseUrl}}/api/v1/guests/{{guestAna}}
+Content-Type: application/json
+
+{
+  "full_name": "Ana Silva Santos",
+  "phone": "+55-11-90000-0000"
+}
+
+### Deletar hóspede
+DELETE {{baseUrl}}/api/v1/guests/{{guestBruno}}
+
+### ------------------------------------------------------------
+### QUARTOS
+### ------------------------------------------------------------
+
+### Listar quartos
+GET {{baseUrl}}/api/v1/rooms
+
+### Buscar quarto por ID
+GET {{baseUrl}}/api/v1/rooms/{{room101}}
+
+### Criar quarto
+POST {{baseUrl}}/api/v1/rooms
+Content-Type: application/json
+
+{
+  "number": 401,
+  "type": "DELUXE",
+  "capacity": 3,
+  "price_per_night": 420.00
+}
+
+### Criar quarto - 409 (número duplicado)
+POST {{baseUrl}}/api/v1/rooms
+Content-Type: application/json
+
+{
+  "number": 101,
+  "type": "STANDARD",
+  "capacity": 2,
+  "price_per_night": 200.00
+}
+
+### Atualizar quarto (mudar preço)
+PUT {{baseUrl}}/api/v1/rooms/{{room101}}
+Content-Type: application/json
+
+{
+  "price_per_night": 280.00
+}
+
+### Inativar quarto (em vez de deletar)
+PUT {{baseUrl}}/api/v1/rooms/{{room301}}
+Content-Type: application/json
+
+{
+  "status": "INATIVO"
+}
+
+### Deletar quarto - 409 se tiver reserva ativa
+DELETE {{baseUrl}}/api/v1/rooms/{{room101}}
+
+### ------------------------------------------------------------
+### RESERVAS — fluxo principal
+### ------------------------------------------------------------
+
+### Listar reservas
+GET {{baseUrl}}/api/v1/reservations
+
+### Criar reserva (happy path)
+# @name novaReserva
+POST {{baseUrl}}/api/v1/reservations
+Content-Type: application/json
+
+{
+  "guest_id": "{{guestAna}}",
+  "room_id":  "{{room201}}",
+  "checkin_expected":  "2026-07-10",
+  "checkout_expected": "2026-07-13",
+  "guests_count": 2
+}
+
+### Buscar reserva criada
+GET {{baseUrl}}/api/v1/reservations/{{novaReserva.response.body.id}}
+
+### Check-in (use o ID retornado acima)
+POST {{baseUrl}}/api/v1/reservations/{{novaReserva.response.body.id}}/check-in
+
+### Check-out (calcula valor final)
+POST {{baseUrl}}/api/v1/reservations/{{novaReserva.response.body.id}}/check-out
+
+### Cancelar (só funciona se status = CREATED)
+POST {{baseUrl}}/api/v1/reservations/{{novaReserva.response.body.id}}/cancel
+
+### ------------------------------------------------------------
+### RESERVAS — cenários de erro (todos com payload padronizado)
+### ------------------------------------------------------------
+
+### 400 — datas inválidas (checkout antes do checkin)
+POST {{baseUrl}}/api/v1/reservations
+Content-Type: application/json
+
+{
+  "guest_id": "{{guestAna}}",
+  "room_id":  "{{room201}}",
+  "checkin_expected":  "2026-08-10",
+  "checkout_expected": "2026-08-08",
+  "guests_count": 1
+}
+
+### 400 — capacidade excedida (quarto 101 comporta 2, pedindo 5)
+POST {{baseUrl}}/api/v1/reservations
+Content-Type: application/json
+
+{
+  "guest_id": "{{guestAna}}",
+  "room_id":  "{{room101}}",
+  "checkin_expected":  "2026-08-10",
+  "checkout_expected": "2026-08-12",
+  "guests_count": 5
+}
+
+### 409 — quarto indisponível (sobreposição com a reserva da seed)
+POST {{baseUrl}}/api/v1/reservations
+Content-Type: application/json
+
+{
+  "guest_id": "{{guestBruno}}",
+  "room_id":  "{{room101}}",
+  "checkin_expected":  "2026-06-06",
+  "checkout_expected": "2026-06-08",
+  "guests_count": 1
+}
+
+### 404 — quarto inexistente
+POST {{baseUrl}}/api/v1/reservations
+Content-Type: application/json
+
+{
+  "guest_id": "{{guestAna}}",
+  "room_id":  "00000000-0000-0000-0000-000000000000",
+  "checkin_expected":  "2026-09-10",
+  "checkout_expected": "2026-09-12",
+  "guests_count": 1
+}
+
+### 422 — check-in fora da janela (data muito futura ou reserva nova com check-in só amanhã)
+# Crie primeiro uma reserva com checkin_expected futuro, depois rode:
+# POST {{baseUrl}}/api/v1/reservations/{{idReservaFutura}}/check-in
