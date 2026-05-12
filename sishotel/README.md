@@ -4,6 +4,8 @@
 
 API REST para gestão de reservas de hotel cobrindo o ciclo de vida **reserva → check-in → check-out**, implementada em **Python + FastAPI** com arquitetura em 3 camadas (Controller → Service → Repository).
 
+HENRIQUE RAFAEL RM - 553945
+
 ---
 
 ## 📋 Sumário
